@@ -2,7 +2,9 @@
 
 Track your **Claude Code** token & $ usage across all your machines — on one iOS widget. Self-hosted, tiny, no account.
 
-![codeusage widget](docs/widget.png)
+<p align="center">
+  <img src="docs/widget.png" alt="codeusage — Claude Code token & cost widget on iOS" width="300">
+</p>
 
 ## Features
 
