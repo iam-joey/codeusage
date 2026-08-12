@@ -92,14 +92,6 @@ Logs: `~/.config/codeusage/push.log`
 4. Tap ▶ to preview.
 5. Home screen → long-press → **+** → Scriptable → **Large** → Add → **Edit Widget** → pick `codeusage`.
 
-Tapping the widget opens the live dashboard, already authed.
-
----
-
-## 4. Dashboard
-
-Open `https://burn.example.com` in any browser. It asks for your token once (stored locally), then shows all machines and ranges live, auto-refreshing every 30s.
-
 ---
 
 ## Config reference
@@ -116,5 +108,4 @@ Open `https://burn.example.com` in any browser. It asks for your token once (sto
 - `POST /push` — agent sends `{machine, days:[…]}` (bearer auth)
 - `GET /stats` — aggregated ranges + machines + 7-day spark (bearer auth)
 - `GET /install.sh` — the agent installer
-- `GET /` — the live dashboard
 - `GET /healthz` — health check (no auth)
