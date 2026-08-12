@@ -5,7 +5,7 @@ set -euo pipefail
 
 BURN_URL="${BURN_URL:-https://burn.iamdsv.dev}"
 : "${BURN_TOKEN:?Set BURN_TOKEN=... before running}"
-MACHINE="${BURN_MACHINE:-$(hostname -s 2>/dev/null || hostname)}"
+MACHINE="${BURN_MACHINE:-$(id -un 2>/dev/null || whoami)}"
 TZONE="${BURN_TZ:-Asia/Kolkata}"
 DIR="$HOME/.config/codeusage"; mkdir -p "$DIR"
 
@@ -38,7 +38,7 @@ $CC daily --json --timezone "${BURN_TZ:-UTC}" | node -e '
 const fs=require("fs");
 let d={}; try{ d=JSON.parse(fs.readFileSync(0,"utf8")); }catch(e){ process.exit(1); }
 const M=process.env.BURN_MACHINE||require("os").hostname();
-const days=(d.daily||[]).map(x=>({date:x.period,input_tokens:x.inputTokens||0,output_tokens:x.outputTokens||0,cache_creation_tokens:x.cacheCreationTokens||0,cache_read_tokens:x.cacheReadTokens||0,cost_usd:x.totalCost||0}));
+const days=(d.daily||[]).map(x=>({date:x.period,input_tokens:x.inputTokens||0,output_tokens:x.outputTokens||0,cache_creation_tokens:x.cacheCreationTokens||0,cache_read_tokens:x.cacheReadTokens||0,cost_usd:x.totalCost||0,models:(x.modelBreakdowns||[]).map(mb=>({model:mb.modelName||"unknown",input_tokens:mb.inputTokens||0,output_tokens:mb.outputTokens||0,cache_creation_tokens:mb.cacheCreationTokens||0,cache_read_tokens:mb.cacheReadTokens||0,cost_usd:mb.cost||0}))}));
 fetch(process.env.BURN_URL.replace(/\/$/,"")+"/push",{method:"POST",headers:{Authorization:"Bearer "+process.env.BURN_TOKEN,"Content-Type":"application/json"},body:JSON.stringify({machine:M,days})})
  .then(r=>{ if(!r.ok){ console.error("push HTTP "+r.status); process.exit(1);} console.log("codeusage: pushed "+M+" ("+days.length+" days)"); })
  .catch(e=>{ console.error(e.message); process.exit(1); });

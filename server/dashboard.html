@@ -4,27 +4,38 @@
 <style>
   :root{ --bg:#0b0e11; --ink:#f4f5f2; --dim:#8a918b; --dim2:#6a726b; --amber:#ffb020; --amber2:#ff8a3c;
     --up:#4ad884; --dn:#ff5c5c; --card:#15181c; --hair:rgba(255,255,255,.08);
-    --sys:-apple-system,"SF Pro Display",system-ui,"Segoe UI",Roboto,sans-serif; }
+    --c-in:#4ade80; --c-out:#38bdf8; --c-cw:#ffb020; --c-cr:#a78bfa;
+    --sys:-apple-system,"SF Pro Display",system-ui,"Segoe UI",Roboto,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,monospace; }
   *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--bg);color:var(--ink);font-family:var(--sys);
+  body{background:var(--bg);color:var(--ink);font-family:var(--sys);min-height:100vh;
     background:radial-gradient(90% 40% at 50% 0%,#1b1836,transparent 60%),var(--bg);
-    min-height:100vh;padding:max(20px,env(safe-area-inset-top)) 16px 40px}
-  .wrap{max-width:520px;margin:0 auto}
+    padding:max(20px,env(safe-area-inset-top)) 16px 44px}
+  .wrap{max-width:560px;margin:0 auto}
+  a{color:inherit}
   .top{display:flex;align-items:center;gap:9px}
-  .fl{width:20px;height:20px} .nm{font-size:17px;font-weight:600}
+  .fl{width:21px;height:21px} .nm{font-size:18px;font-weight:600}
   .upd{margin-left:auto;font-size:12px;color:var(--dim);display:flex;align-items:center;gap:6px}
   .live{width:7px;height:7px;border-radius:50%;background:var(--up);box-shadow:0 0 0 3px rgba(74,216,132,.16)}
-  .cells{display:flex;margin-top:20px;background:var(--card);border-radius:16px;padding:16px 6px;box-shadow:inset 0 0 0 1px var(--hair)}
-  .cell{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;padding:0 12px;text-align:left}
-  .cell+.cell{border-left:1px solid var(--hair)}
-  .cell .lab{font-size:10px;letter-spacing:.12em;color:var(--dim);font-weight:600}
-  .cell .val{font-size:24px;font-weight:700;letter-spacing:-1px;font-variant-numeric:tabular-nums;white-space:nowrap}
-  .cell .tk{font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}
-  .cell .chg{font-size:11.5px;font-weight:600} .chg.up{color:var(--up)} .chg.dn{color:var(--dn)}
-  .graph{margin-top:16px;background:var(--card);border-radius:16px;box-shadow:inset 0 0 0 1px var(--hair);overflow:hidden}
+  .tabs{display:flex;gap:4px;margin-top:18px;background:var(--card);padding:4px;border-radius:12px;box-shadow:inset 0 0 0 1px var(--hair)}
+  .tabs button{flex:1;font-family:var(--sys);font-size:13.5px;padding:9px 0;border:0;border-radius:9px;background:transparent;color:var(--dim);cursor:pointer;transition:.15s}
+  .tabs button.on{background:linear-gradient(180deg,var(--amber),var(--amber2));color:#2c1602;font-weight:600}
+  .card{background:var(--card);border-radius:16px;box-shadow:inset 0 0 0 1px var(--hair);padding:18px 18px;margin-top:16px}
+  .hero{display:flex;align-items:baseline;gap:12px}
+  .money{font-size:40px;font-weight:700;letter-spacing:-1.6px;font-variant-numeric:tabular-nums}
+  .chg{font-size:14px;font-weight:600} .chg.up{color:var(--up)} .chg.dn{color:var(--dn)}
+  .sub{font-size:13px;color:var(--dim);margin-top:8px}
+  .sub b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+  .sec{font-size:11px;letter-spacing:.14em;color:var(--dim);font-weight:600;margin:0 2px 12px}
+  .bar{display:flex;height:14px;border-radius:7px;overflow:hidden;background:rgba(255,255,255,.05)}
+  .bar span{height:100%}
+  .leg{margin-top:16px;display:flex;flex-direction:column;gap:12px}
+  .lr{display:flex;align-items:center;gap:10px}
+  .lr .d{width:10px;height:10px;border-radius:3px;flex:none}
+  .lr .l{font-size:14px} .lr .c{margin-left:auto;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
+  .lr .p{font-size:12px;color:var(--dim);width:52px;text-align:right;font-variant-numeric:tabular-nums}
   .graph svg{width:100%;height:120px;display:block}
-  .sec{font-size:11px;letter-spacing:.14em;color:var(--dim);font-weight:600;margin:22px 4px 10px}
-  .m{display:flex;align-items:center;gap:11px;padding:13px 4px;border-bottom:1px solid var(--hair)}
+  .m{display:flex;align-items:center;gap:11px;padding:13px 2px;border-bottom:1px solid var(--hair)}
   .m:last-child{border-bottom:0}
   .m .dot{width:8px;height:8px;border-radius:50%;flex:none}
   .m .mn{font-size:15px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -32,10 +43,17 @@
   .m .rt{text-align:right} .m .rt .v{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
   .m .rt .t{font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums}
   .err{margin-top:24px;color:var(--dim);font-size:14px;text-align:center;line-height:1.7}
+  .note{font-size:11.5px;color:var(--dim2);margin-top:14px;line-height:1.5}
+  .mr{display:grid;grid-template-columns:1fr 84px auto auto;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--hair)}
+  .mr:last-child{border-bottom:0}
+  .mr .mm{font-size:13px;font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mr .mbar{height:6px;border-radius:8px;background:rgba(255,255,255,.06);overflow:hidden}
+  .mr .mbar i{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,var(--amber2),var(--amber))}
+  .mr .mv{font-size:13.5px;font-weight:600;font-variant-numeric:tabular-nums;text-align:right;min-width:54px}
+  .mr .mc{font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums;text-align:right;min-width:56px}
 </style></head><body>
 <div class="wrap" id="app"><p class="err">loading…</p></div>
 <script>
-const $=(t,c,txt)=>{const e=document.createElement(t);if(c)e.className=c;if(txt!=null)e.textContent=txt;return e;};
 function getToken(){
   const h=new URLSearchParams(location.hash.slice(1)).get('t');
   if(h){ localStorage.setItem('cu_token',h); history.replaceState(null,'',location.pathname); return h; }
@@ -45,51 +63,66 @@ function getToken(){
 }
 const usd=n=>{n=+n||0; if(n>=1e6)return "$"+(n/1e6).toFixed(1)+"M"; if(n>=1e4)return "$"+(n/1e3).toFixed(1)+"K"; if(n>=1e3)return "$"+Math.round(n).toLocaleString("en-US"); return "$"+n.toFixed(2);};
 const tok=n=>{n=+n||0; if(n>=1e9)return (n/1e9).toFixed(2)+"B"; if(n>=1e6){const v=n/1e6;return (v>=100?Math.round(v):v.toFixed(1))+"M";} if(n>=1e3)return Math.round(n/1e3)+"K"; return ""+n;};
+const pct=(a,b)=>b>0?(a/b*100):0;
 function rel(iso){ if(!iso)return ""; const t=Date.parse(iso); if(isNaN(t))return ""; const s=Math.max(0,(Date.now()-t)/1000);
   if(s<60)return "just now"; if(s<3600)return Math.floor(s/60)+"m ago"; if(s<86400)return Math.floor(s/3600)+"h ago"; return Math.floor(s/86400)+"d ago"; }
 const FLAME='<svg class="fl" viewBox="0 0 24 24"><defs><linearGradient id="fl" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ff6a2c"/><stop offset="1" stop-color="#ffb020"/></linearGradient></defs><path fill="url(#fl)" d="M13.5 1.5c.6 3-1 4.6-2.6 6.2C9.1 9.4 7.4 11.1 7.4 14a7 7 0 0 0 9.3 6.6c2.7-1 4.3-3.6 4.3-6.6 0-2.3-1-3.9-2-5.2-.3 1-1 1.7-1.9 2-.2-2.8-1.3-5.6-3.6-6.9Z"/></svg>';
 function sparkSVG(vals){
   if(vals.length<2) return "";
-  const w=500,h=120,pad=14,mx=Math.max(...vals),mn=Math.min(...vals),rg=(mx-mn)||1,st=w/(vals.length-1);
+  const w=520,h=120,pad=14,mx=Math.max(...vals),mn=Math.min(...vals),rg=(mx-mn)||1,st=w/(vals.length-1);
   const pts=vals.map((v,i)=>[i*st,h-pad-((v-mn)/rg)*(h-2*pad)]);
   const line="M"+pts.map(p=>p[0].toFixed(0)+","+p[1].toFixed(0)).join(" L");
-  return '<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none"><defs><linearGradient id="af" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffb020" stop-opacity=".28"/><stop offset="1" stop-color="#ffb020" stop-opacity="0"/></linearGradient></defs>'+
+  return '<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none"><defs><linearGradient id="af" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffb020" stop-opacity=".26"/><stop offset="1" stop-color="#ffb020" stop-opacity="0"/></linearGradient></defs>'+
     '<path d="'+line+' L'+w+','+h+' L0,'+h+' Z" fill="url(#af)"/>'+
     '<path d="'+line+'" fill="none" stroke="#ffb020" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>'+
     '<circle cx="'+w+'" cy="'+pts[pts.length-1][1].toFixed(0)+'" r="5" fill="#ff8a3c"/></svg>';
 }
 const token=getToken();
+let DATA=null, RANGE="today";
+const LABELS={today:"today","7d":"7 days","30d":"30 days"};
+
 async function load(){
   try{
     const r=await fetch("/stats",{headers:{Authorization:"Bearer "+token}});
     if(!r.ok){ document.getElementById('app').innerHTML='<div class="top">'+FLAME+'<span class="nm">codeusage</span></div><p class="err">'+(r.status===401?'wrong token — <a href="#" onclick="localStorage.removeItem(\'cu_token\');location.reload()" style="color:#ffb020">reset</a>':'server error '+r.status)+'</p>'; return; }
-    render(await r.json());
-  }catch(e){ document.getElementById('app').innerHTML='<p class="err">can\'t reach server</p>'; }
+    DATA=await r.json(); render();
+  }catch(e){ if(!DATA) document.getElementById('app').innerHTML='<p class="err">can\'t reach server</p>'; }
 }
-function cell(lab,r){
-  r=r||{}; const c=$('div','cell'); c.appendChild($('span','lab',lab));
-  c.appendChild($('span','val',usd(r.cost_usd))); c.appendChild($('span','tk',tok(r.prompted)+' tok'));
-  const cp=r.change_pct; if(cp!=null){ const e=$('span','chg '+(cp>=0?'up':'dn'),(cp>=0?'▲ ':'▼ ')+Math.abs(cp)+'%'); c.appendChild(e); }
-  else c.appendChild($('span','chg',' '));
-  return c;
-}
-function render(d){
-  const app=document.getElementById('app'); app.innerHTML='';
-  const top=$('div','top'); top.innerHTML=FLAME+'<span class="nm">codeusage</span>';
-  const upd=$('div','upd'); upd.innerHTML='<span class="live"></span><span id="ago">live</span>'; top.appendChild(upd); app.appendChild(top);
-  const R=d.ranges||{};
-  const cells=$('div','cells'); cells.appendChild(cell('TODAY',R.today)); cells.appendChild(cell('7 DAYS',R['7d'])); cells.appendChild(cell('30 DAYS',R['30d'])); app.appendChild(cells);
+function render(){
+  const d=DATA, app=document.getElementById('app');
+  const r=(d.ranges||{})[RANGE]||{};
+  const total=r.tokens||0;
+  const parts=[["Input",r.input||0,"var(--c-in)"],["Output",r.output||0,"var(--c-out)"],["Cache write",r.cache_creation||0,"var(--c-cw)"],["Cache read",r.cache_read||0,"var(--c-cr)"]];
+  const bar=parts.map(p=>'<span style="width:'+pct(p[1],total).toFixed(3)+'%;background:'+p[2]+'"></span>').join('');
+  const leg=parts.map(p=>'<div class="lr"><span class="d" style="background:'+p[2]+'"></span><span class="l">'+p[0]+'</span><span class="c">'+tok(p[1])+'</span><span class="p">'+pct(p[1],total).toFixed(1)+'%</span></div>').join('');
+  const cp=r.change_pct;
+  const trend=(cp!=null)?'<span class="chg '+(cp>=0?'up':'dn')+'">'+(cp>=0?'▲ ':'▼ ')+Math.abs(cp)+'%</span>':'';
   const spark=(d.spark||[]).map(p=>+p.cost_usd||0);
-  if(spark.length>=2){ const g=$('div','graph'); g.innerHTML=sparkSVG(spark); app.appendChild(g); }
-  app.appendChild($('div','sec','MACHINES · 30D'));
-  const ms=(d.machines||[]).map(m=>({name:m.machine,on:!m.stale,cost:(m["30d"]||{}).cost_usd||0,tks:(m["30d"]||{}).tokens||0,seen:rel(m.updated_at)})).sort((a,b)=>b.cost-a.cost);
-  for(const m of ms){
-    const row=$('div','m'); const dot=$('span','dot'); dot.style.background=m.on?'var(--up)':'var(--dn)'; row.appendChild(dot);
-    const nm=$('span','mn',m.name); nm.style.color=m.on?'var(--ink)':'var(--dn)'; row.appendChild(nm);
-    const sn=$('span','seen',m.seen); sn.style.color=m.on?'var(--dim2)':'var(--dn)'; row.appendChild(sn);
-    const rt=$('div','rt'); const v=$('div','v',usd(m.cost)); v.style.color=m.on?'var(--ink)':'var(--dim2)'; rt.appendChild(v); rt.appendChild($('div','t',tok(m.tks)+' tok')); row.appendChild(rt);
-    app.appendChild(row);
-  }
+  const machines=(d.machines||[]).map(m=>({name:m.machine,on:!m.stale,cost:(m[RANGE]||{}).cost_usd||0,tks:(m[RANGE]||{}).tokens||0,seen:rel(m.updated_at)})).sort((a,b)=>b.cost-a.cost);
+  const mrows=machines.map(m=>'<div class="m"><span class="dot" style="background:'+(m.on?'var(--up)':'var(--dn)')+'"></span>'+
+    '<span class="mn" style="color:'+(m.on?'var(--ink)':'var(--dn)')+'">'+m.name+'</span>'+
+    '<span class="seen" style="color:'+(m.on?'var(--dim2)':'var(--dn)')+'">'+m.seen+'</span>'+
+    '<div class="rt"><div class="v" style="color:'+(m.on?'var(--ink)':'var(--dim2)')+'">'+usd(m.cost)+'</div><div class="t">'+tok(m.tks)+' tok</div></div></div>').join('');
+
+  const models=(d.models||{})[RANGE]||[];
+  const mtot=models.reduce((s,m)=>s+(+m.tokens||0),0)||1;
+  const modelRows=models.length
+    ? models.map(m=>'<div class="mr"><span class="mm">'+m.model+'</span><span class="mbar"><i style="width:'+pct(m.tokens,mtot).toFixed(1)+'%"></i></span><span class="mv">'+tok(m.tokens)+'</span><span class="mc">'+usd(m.cost_usd)+'</span></div>').join('')
+    : '<div class="note">No per-model data yet — appears after your machines push with the updated agent.</div>';
+
+  app.innerHTML=
+    '<div class="top">'+FLAME+'<span class="nm">codeusage</span><div class="upd"><span class="live"></span><span id="ago">live</span></div></div>'+
+    '<div class="tabs">'+['today','7d','30d'].map(k=>'<button data-r="'+k+'" class="'+(k===RANGE?'on':'')+'">'+LABELS[k]+'</button>').join('')+'</div>'+
+    '<div class="card"><div class="hero"><span class="money">'+usd(r.cost_usd)+'</span>'+trend+'</div>'+
+      '<div class="sub"><b>'+tok(total)+'</b> tokens · <b>'+tok(r.prompted||0)+'</b> prompted (input+output)</div></div>'+
+    '<div class="card"><div class="sec">TOKEN BREAKDOWN · '+LABELS[RANGE].toUpperCase()+'</div>'+
+      '<div class="bar">'+bar+'</div><div class="leg">'+leg+'</div>'+
+      '<div class="note">$ is cache-weighted (cache reads priced ~10%, writes at a premium) — that\'s why cost stays sane even though cache reads dominate the count.</div></div>'+
+    '<div class="card"><div class="sec">BY MODEL · '+LABELS[RANGE].toUpperCase()+'</div>'+modelRows+'</div>'+
+    (spark.length>=2?'<div class="card"><div class="sec">LAST 7 DAYS ($)</div><div class="graph">'+sparkSVG(spark)+'</div></div>':'')+
+    '<div class="card"><div class="sec">MACHINES · '+LABELS[RANGE].toUpperCase()+'</div>'+mrows+'</div>';
+
+  document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{ RANGE=b.dataset.r; render(); });
   window._gen=Date.parse(d.generated_at)||Date.now();
 }
 setInterval(()=>{ const a=document.getElementById('ago'); if(a&&window._gen) a.textContent='updated '+rel(new Date(window._gen).toISOString()); },1000);

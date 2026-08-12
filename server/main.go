@@ -29,13 +29,29 @@ var installScript string
 //go:embed dashboard.html
 var dashboardHTML string
 
-type dayRow struct {
-	Date                string  `json:"date"`
+type modelRow struct {
+	Model               string  `json:"model"`
 	InputTokens         int64   `json:"input_tokens"`
 	OutputTokens        int64   `json:"output_tokens"`
 	CacheCreationTokens int64   `json:"cache_creation_tokens"`
 	CacheReadTokens     int64   `json:"cache_read_tokens"`
 	CostUSD             float64 `json:"cost_usd"`
+}
+
+type dayRow struct {
+	Date                string     `json:"date"`
+	InputTokens         int64      `json:"input_tokens"`
+	OutputTokens        int64      `json:"output_tokens"`
+	CacheCreationTokens int64      `json:"cache_creation_tokens"`
+	CacheReadTokens     int64      `json:"cache_read_tokens"`
+	CostUSD             float64    `json:"cost_usd"`
+	Models              []modelRow `json:"models"`
+}
+
+type modelStat struct {
+	Model  string  `json:"model"`
+	Tokens int64   `json:"tokens"`
+	Cost   float64 `json:"cost_usd"`
 }
 
 type pushBody struct {
@@ -49,10 +65,14 @@ type rangeSum struct {
 }
 
 type rangeStat struct {
-	Tokens    int64    `json:"tokens"`    // everything incl. cache
-	Prompted  int64    `json:"prompted"`  // input + output only (the "real work")
-	Cost      float64  `json:"cost_usd"`
-	ChangePct *float64 `json:"change_pct"` // vs the previous equal window; null if no baseline
+	Tokens        int64    `json:"tokens"`         // everything incl. cache
+	Prompted      int64    `json:"prompted"`       // input + output only (the "real work")
+	Input         int64    `json:"input"`
+	Output        int64    `json:"output"`
+	CacheCreation int64    `json:"cache_creation"` // cache write
+	CacheRead     int64    `json:"cache_read"`
+	Cost          float64  `json:"cost_usd"`
+	ChangePct     *float64 `json:"change_pct"` // vs the previous equal window; null if no baseline
 }
 
 type machineStat struct {
@@ -106,6 +126,7 @@ func main() {
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, map[string]any{"ok": true}) })
 	mux.HandleFunc("/push", auth(handlePush))
 	mux.HandleFunc("/stats", auth(handleStats))
+	mux.HandleFunc("/forget", auth(handleForget))
 	mux.HandleFunc("/install.sh", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/x-shellscript")
 		_, _ = w.Write([]byte(installScript))
@@ -141,6 +162,17 @@ CREATE TABLE IF NOT EXISTS usage_daily (
 CREATE TABLE IF NOT EXISTS machine_seen (
 	machine   TEXT PRIMARY KEY,
 	last_push TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS usage_model (
+	machine               TEXT    NOT NULL,
+	day                   TEXT    NOT NULL,
+	model                 TEXT    NOT NULL,
+	input_tokens          INTEGER NOT NULL,
+	output_tokens         INTEGER NOT NULL,
+	cache_creation_tokens INTEGER NOT NULL,
+	cache_read_tokens     INTEGER NOT NULL,
+	cost_usd              REAL    NOT NULL,
+	PRIMARY KEY (machine, day, model)
 );`)
 	return err
 }
@@ -193,6 +225,16 @@ ON CONFLICT(machine, day) DO UPDATE SET
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
 		}
+		if len(d.Models) > 0 { // per-model breakdown: replace the day's set
+			tx.Exec(`DELETE FROM usage_model WHERE machine=? AND day=?`, b.Machine, d.Date)
+			for _, m := range d.Models {
+				if strings.TrimSpace(m.Model) == "" {
+					continue
+				}
+				tx.Exec(`INSERT INTO usage_model (machine, day, model, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, cost_usd)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, b.Machine, d.Date, m.Model, m.InputTokens, m.OutputTokens, m.CacheCreationTokens, m.CacheReadTokens, m.CostUSD)
+			}
+		}
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
 	if _, err := tx.Exec(`INSERT INTO machine_seen (machine, last_push) VALUES (?, ?)
@@ -205,6 +247,32 @@ ON CONFLICT(machine) DO UPDATE SET last_push=excluded.last_push`, b.Machine, now
 		return
 	}
 	writeJSON(w, map[string]any{"ok": true, "machine": b.Machine, "days": len(b.Days)})
+}
+
+func handleForget(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	m := strings.TrimSpace(r.URL.Query().Get("machine"))
+	if m == "" {
+		http.Error(w, "machine required", http.StatusBadRequest)
+		return
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		http.Error(w, "db error", http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback()
+	tx.Exec(`DELETE FROM usage_daily WHERE machine=?`, m)
+	tx.Exec(`DELETE FROM usage_model WHERE machine=?`, m)
+	tx.Exec(`DELETE FROM machine_seen WHERE machine=?`, m)
+	if err := tx.Commit(); err != nil {
+		http.Error(w, "db error", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true, "forgot": m})
 }
 
 func handleStats(w http.ResponseWriter, r *http.Request) {
@@ -224,36 +292,51 @@ func handleStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	spark := sparkline(day)
+	models := map[string][]modelStat{
+		"today": modelsBetween(day(0), day(0)),
+		"7d":    modelsBetween(day(-6), day(0)),
+		"30d":   modelsBetween(day(-29), day(0)),
+	}
 
 	writeJSON(w, map[string]any{
 		"generated_at": now.UTC().Format(time.RFC3339),
 		"ranges":       ranges,
 		"spark":        spark,
 		"machines":     machines,
+		"models":       models,
 	})
 }
 
 // makeRange sums the current window and computes % change vs the previous window (by cost).
+type winSums struct {
+	Input, Output, CacheCreation, CacheRead int64
+	Cost                                    float64
+}
+
 func makeRange(curFrom, curTo, prevFrom, prevTo string) rangeStat {
-	tok, prompted, cost := sumBetween(curFrom, curTo)
-	_, _, prevCost := sumBetween(prevFrom, prevTo)
+	c := sumBetween(curFrom, curTo)
+	p := sumBetween(prevFrom, prevTo)
 	var chg *float64
-	if prevCost > 0 {
-		v := math.Round((cost-prevCost)/prevCost*1000) / 10
+	if p.Cost > 0 {
+		v := math.Round((c.Cost-p.Cost)/p.Cost*1000) / 10
 		if math.Abs(v) <= 999 { // ignore absurd swings when the prior window is near-empty
 			chg = &v
 		}
 	}
-	return rangeStat{Tokens: tok, Prompted: prompted, Cost: cost, ChangePct: chg}
+	return rangeStat{
+		Tokens: c.Input + c.Output + c.CacheCreation + c.CacheRead, Prompted: c.Input + c.Output,
+		Input: c.Input, Output: c.Output, CacheCreation: c.CacheCreation, CacheRead: c.CacheRead,
+		Cost: c.Cost, ChangePct: chg,
+	}
 }
 
-func sumBetween(from, to string) (int64, int64, float64) {
-	var tok, prompted int64
-	var cost float64
-	db.QueryRow(`SELECT COALESCE(SUM(input_tokens+output_tokens+cache_creation_tokens+cache_read_tokens),0),
-		COALESCE(SUM(input_tokens+output_tokens),0),
-		COALESCE(SUM(cost_usd),0) FROM usage_daily WHERE day BETWEEN ? AND ?`, from, to).Scan(&tok, &prompted, &cost)
-	return tok, prompted, cost
+func sumBetween(from, to string) winSums {
+	var s winSums
+	db.QueryRow(`SELECT COALESCE(SUM(input_tokens),0), COALESCE(SUM(output_tokens),0),
+		COALESCE(SUM(cache_creation_tokens),0), COALESCE(SUM(cache_read_tokens),0),
+		COALESCE(SUM(cost_usd),0) FROM usage_daily WHERE day BETWEEN ? AND ?`, from, to).
+		Scan(&s.Input, &s.Output, &s.CacheCreation, &s.CacheRead, &s.Cost)
+	return s
 }
 
 func machineBetween(from, to string) (map[string]rangeSum, error) {
@@ -349,6 +432,24 @@ func sparkline(day func(int) string) []sparkPoint {
 			out[i].Date = d
 		} else {
 			out[i] = sparkPoint{Date: d}
+		}
+	}
+	return out
+}
+
+func modelsBetween(from, to string) []modelStat {
+	out := []modelStat{}
+	rows, err := db.Query(`SELECT model,
+		COALESCE(SUM(input_tokens+output_tokens+cache_creation_tokens+cache_read_tokens),0),
+		COALESCE(SUM(cost_usd),0) FROM usage_model WHERE day BETWEEN ? AND ? GROUP BY model ORDER BY 3 DESC`, from, to)
+	if err != nil {
+		return out
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var m modelStat
+		if err := rows.Scan(&m.Model, &m.Tokens, &m.Cost); err == nil {
+			out = append(out, m)
 		}
 	}
 	return out
