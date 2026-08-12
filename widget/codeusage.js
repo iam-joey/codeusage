@@ -4,7 +4,7 @@ let   BURN_TOKEN = "REPLACE_WITH_YOUR_TOKEN";
 if (args.widgetParameter) BURN_TOKEN = String(args.widgetParameter).trim();
 
 const INK=new Color("#f4f5f2"), DIM=new Color("#8a918b"), DIM2=new Color("#6a726b");
-const AMBER=new Color("#ffb020"), AMBER2=new Color("#ff8a3c"), UP=new Color("#4ad884"), DN=new Color("#ff5c5c");
+const AMBER=new Color("#ffb020"), AMBER2=new Color("#ff8a3c"), SOFT=new Color("#ffd39a"), UP=new Color("#4ad884"), DN=new Color("#ff5c5c");
 const RANGES=[["today","TODAY"],["7d","7 DAYS"],["30d","30 DAYS"]];
 
 const usd=n=>{ n=Number(n)||0;
@@ -13,7 +13,8 @@ const usd=n=>{ n=Number(n)||0;
   if(n>=1e3) return "$"+Math.round(n).toLocaleString("en-US");
   return "$"+n.toFixed(2); };
 const tok=n=>{ n=Number(n)||0;
-  if(n>=1e9) return (n/1e9).toFixed(2)+"B";
+  if(n>=1e12) return (n/1e12).toFixed(2)+"T";
+  if(n>=1e9){ const v=n/1e9; return (v>=100?Math.round(v):v.toFixed(2))+"B"; }
   if(n>=1e6){ const v=n/1e6; return (v>=100?Math.round(v):v.toFixed(1))+"M"; }
   if(n>=1e3) return Math.round(n/1e3)+"K";
   return String(n); };
@@ -33,15 +34,16 @@ async function getStats(){
   return await r.loadJSON();
 }
 function sparkImage(vals){
-  const w=600,h=150,pad=12;
+  const w=600,h=150,padY=16,padX=16,dotR=7;
   const ctx=new DrawContext(); ctx.size=new Size(w,h); ctx.opaque=false; ctx.respectScreenScale=true;
-  const mx=Math.max(...vals),mn=Math.min(...vals),rg=(mx-mn)||1,st=w/(vals.length-1);
-  const pts=vals.map((v,i)=>new Point(i*st, h-pad-((v-mn)/rg)*(h-2*pad)));
-  const a=new Path(); a.move(new Point(0,h)); pts.forEach(p=>a.addLine(p)); a.addLine(new Point(w,h)); a.closeSubpath();
+  const mx=Math.max(...vals),mn=Math.min(...vals),rg=(mx-mn)||1;
+  const x0=padX, x1=w-padX-dotR, st=(x1-x0)/(vals.length-1);
+  const pts=vals.map((v,i)=>new Point(x0+i*st, h-padY-((v-mn)/rg)*(h-2*padY)));
+  const a=new Path(); a.move(new Point(x0,h)); pts.forEach(p=>a.addLine(p)); a.addLine(new Point(x1,h)); a.closeSubpath();
   ctx.setFillColor(new Color("#ffb020",0.16)); ctx.addPath(a); ctx.fillPath();
   const l=new Path(); l.move(pts[0]); for(let i=1;i<pts.length;i++) l.addLine(pts[i]);
   ctx.setStrokeColor(AMBER); ctx.setLineWidth(5); ctx.addPath(l); ctx.strokePath();
-  const e=pts[pts.length-1]; ctx.setFillColor(AMBER2); ctx.fillEllipse(new Rect(e.x-7,e.y-7,14,14));
+  const e=pts[pts.length-1]; ctx.setFillColor(AMBER2); ctx.fillEllipse(new Rect(e.x-dotR,e.y-dotR,2*dotR,2*dotR));
   return ctx.getImage();
 }
 async function build(){
@@ -65,13 +67,13 @@ async function build(){
   const row=w.addStack();
   RANGES.forEach((rr,i)=>{
     if(i>0) row.addSpacer();
-    const r=R[rr[0]]||{cost_usd:0,prompted:0,change_pct:null};
+    const r=R[rr[0]]||{cost_usd:0,tokens:0,change_pct:null};
     const c=row.addStack(); c.layoutVertically();
     const lab=c.addText(rr[1]); lab.font=Font.mediumSystemFont(9.5); lab.textColor=DIM;
     c.addSpacer(3);
     const val=c.addText(usd(r.cost_usd)); val.font=Font.boldSystemFont(19); val.textColor=INK;
     c.addSpacer(3);
-    const tk=c.addText(tok(r.prompted)+" tok"); tk.font=Font.mediumSystemFont(10); tk.textColor=DIM;
+    const tk=c.addText(tok(r.tokens)+" tok"); tk.font=Font.mediumSystemFont(10); tk.textColor=SOFT;
     c.addSpacer(2);
     if(r.change_pct!==null&&r.change_pct!==undefined){
       const up=r.change_pct>=0;
