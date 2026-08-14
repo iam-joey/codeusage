@@ -56,8 +56,8 @@ async function build(){
     w.addSpacer(4); const m=w.addText("can't reach server — check token"); m.font=Font.systemFont(12); m.textColor=DIM; return w;
   }
   const R=data.ranges||{};
-  const machines=(data.machines||[]).map(m=>({name:m.machine,on:!m.stale,cost:(m["30d"]||{}).cost_usd||0,seen:relTime(m.updated_at)})).sort((a,b)=>b.cost-a.cost);
-  const spark=(data.spark||[]).map(p=>Number(p.cost_usd)||0);
+  const machines=(data.machines||[]).map(m=>({name:m.machine,on:!m.stale,toks:(m["30d"]||{}).tokens||0,seen:relTime(m.updated_at)})).sort((a,b)=>b.toks-a.toks);
+  const spark=(data.spark||[]).map(p=>Number(p.tokens)||0);
 
   const head=w.addStack(); head.centerAlignContent();
   try{ const s=SFSymbol.named("flame.fill"); s.applyFont(Font.systemFont(15)); const im=head.addImage(s.image); im.imageSize=new Size(16,16); im.tintColor=AMBER2; head.addSpacer(7);}catch(e){}
@@ -71,9 +71,9 @@ async function build(){
     const c=row.addStack(); c.layoutVertically();
     const lab=c.addText(rr[1]); lab.font=Font.mediumSystemFont(9.5); lab.textColor=DIM;
     c.addSpacer(3);
-    const val=c.addText(usd(r.cost_usd)); val.font=Font.boldSystemFont(19); val.textColor=INK;
+    const val=c.addText(tok(r.tokens)); val.font=Font.boldSystemFont(19); val.textColor=INK;
     c.addSpacer(3);
-    const tk=c.addText(tok(r.tokens)+" tok"); tk.font=Font.mediumSystemFont(10); tk.textColor=SOFT;
+    const tk=c.addText(usd(r.cost_usd)); tk.font=Font.mediumSystemFont(10); tk.textColor=SOFT;
     c.addSpacer(2);
     if(r.change_pct!==null&&r.change_pct!==undefined){
       const up=r.change_pct>=0;
@@ -93,13 +93,13 @@ async function build(){
     const d=rw.addText("●"); d.font=Font.systemFont(9); d.textColor=m.on?UP:DN; rw.addSpacer(9);
     const n=rw.addText(m.name); n.font=Font.systemFont(13.5); n.textColor=m.on?INK:DN; rw.addSpacer();
     const sn=rw.addText(m.seen); sn.font=Font.systemFont(10.5); sn.textColor=m.on?DIM2:DN; rw.addSpacer(8);
-    const v=rw.addText(usd(m.cost)); v.font=Font.semiboldSystemFont(13.5); v.textColor=m.on?INK:DIM2;
+    const v=rw.addText(tok(m.toks)); v.font=Font.semiboldSystemFont(13.5); v.textColor=m.on?INK:DIM2;
     w.addSpacer(9);
   }
   if(hid.length){
-    const rest=hid.reduce((s,m)=>s+m.cost,0), inact=hid.filter(m=>!m.on).length;
+    const rest=hid.reduce((s,m)=>s+m.toks,0), inact=hid.filter(m=>!m.on).length;
     const rw=w.addStack(); const l=rw.addText("+"+hid.length+" more"+(inact?" · "+inact+" inactive":"")); l.font=Font.systemFont(11.5); l.textColor=inact?DN:DIM; rw.addSpacer();
-    const v=rw.addText(usd(rest)); v.font=Font.systemFont(11.5); v.textColor=DIM;
+    const v=rw.addText(tok(rest)); v.font=Font.systemFont(11.5); v.textColor=DIM;
   }
   w.refreshAfterDate=new Date(Date.now()+1200*1000);
   return w;
